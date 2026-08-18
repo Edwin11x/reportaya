@@ -1,2 +1,2 @@
 # reportaya
-Repositorio de la Aplicación ReportaYA
+Aplicación móvil para reportar incidencias en la ciudad de Somoto.
