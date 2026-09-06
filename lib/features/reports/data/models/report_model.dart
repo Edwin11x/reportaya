@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import '../../domain/entities/report.dart';
 
 class ReportModel extends Report {
