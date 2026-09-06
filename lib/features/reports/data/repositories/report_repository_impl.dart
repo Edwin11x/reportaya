@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,11 +12,10 @@ class ReportRepositoryImpl implements ReportRepository {
 
   @override
   List<Report> getReports() {
-    // Temporalmente devolvemos una lista vacía.
-    // La lectura de Supabase se hará con getReportsFromSupabase().
     return const [];
   }
 
+  @override
   Future<List<Report>> getReportsFromSupabase() async {
     final response = await _supabase
         .from('reports')
@@ -40,7 +41,6 @@ class ReportRepositoryImpl implements ReportRepository {
 
     return data.map((item) {
       final categoryData = item['categories'];
-      final institutionData = item['institutions'];
 
       final category = categoryData != null
           ? categoryData['name'] as String
@@ -69,30 +69,97 @@ class ReportRepositoryImpl implements ReportRepository {
     }).toList();
   }
 
+  // ============================================================
+  // CREAR REPORTE + SUBIR FOTO
+  // ============================================================
+
+  @override
+  Future<void> createReport({
+    required String title,
+    required String description,
+    required String categoryId,
+    required double latitude,
+    required double longitude,
+    String? photoUrl,
+    File? photoFile,
+  }) async {
+    String? finalPhotoUrl;
+
+    // ==========================================================
+    // 1. CREAR NOMBRE ÚNICO PARA LA FOTO
+    // ==========================================================
+
+    if (photoFile != null) {
+      final fileName =
+          '${DateTime.now().microsecondsSinceEpoch}.jpg';
+
+      final filePath = 'reports/$fileName';
+
+      // ========================================================
+      // 2. SUBIR FOTO A SUPABASE STORAGE
+      // ========================================================
+
+      await _supabase.storage
+          .from('report-images')
+          .upload(
+        filePath,
+        photoFile,
+        fileOptions: const FileOptions(
+          contentType: 'image/jpeg',
+          upsert: false,
+        ),
+      );
+
+      // ========================================================
+      // 3. OBTENER URL PÚBLICA
+      // ========================================================
+
+      finalPhotoUrl = _supabase.storage
+          .from('report-images')
+          .getPublicUrl(filePath);
+    }
+
+    // ==========================================================
+    // 4. GUARDAR REPORTE EN SUPABASE
+    // ==========================================================
+
+    await _supabase.from('reports').insert({
+      'title': title,
+      'description': description,
+      'category_id': categoryId,
+      'latitude': latitude,
+      'longitude': longitude,
+      'photo_url': finalPhotoUrl ?? photoUrl,
+      'status': 'reportado',
+    });
+  }
+
+  // ============================================================
+  // ESTADO
+  // ============================================================
+
   String _formatStatus(String status) {
     switch (status) {
       case 'reportado':
         return 'Reportado';
-
       case 'en_revision':
         return 'En revisión';
-
       case 'asignado':
         return 'Asignado';
-
       case 'en_proceso':
         return 'En proceso';
-
       case 'resuelto':
         return 'Resuelto';
-
       case 'rechazado':
         return 'Rechazado';
-
       default:
         return status;
     }
   }
+
+  // ============================================================
+  // FECHA
+  // ============================================================
 
   String _formatDate(String? dateString) {
     if (dateString == null) {
@@ -123,6 +190,10 @@ class ReportRepositoryImpl implements ReportRepository {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
+  // ============================================================
+  // ICONO DE CATEGORÍA
+  // ============================================================
+
   IconData _getCategoryIcon(String category) {
     switch (category) {
       case 'Baches':
@@ -147,6 +218,10 @@ class ReportRepositoryImpl implements ReportRepository {
         return Icons.report_problem_outlined;
     }
   }
+
+  // ============================================================
+  // FONDO DE CATEGORÍA
+  // ============================================================
 
   Color _getCategoryBackground(String category) {
     switch (category) {

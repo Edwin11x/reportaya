@@ -26,7 +26,7 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: 'https://oftyidnjsfaujehlyvbh.supabase.co',
-    anonKey: 'sb_publishable_DMFAn2u6oIsMfB8GcfbEhQ_rYbVfrX_',
+      publishableKey: 'sb_publishable_DMFAn2u6oIsMfB8GcfbEhQ_rYbVfrX_',
   );
 
   runApp(
@@ -60,12 +60,16 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int index = 0;
 
-  void openCreate() {
-    Navigator.of(context).push(
+  Future<void> openCreate() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const CreateReportPage(),
       ),
     );
+
+    if (!mounted) return;
+
+    ref.invalidate(reportsProvider);
   }
 
   @override
@@ -118,10 +122,12 @@ class _MainShellState extends ConsumerState<MainShell> {
       data: (reports) {
         final pages = [
           HomePage(
+            key: ValueKey('home-${reports.length}'),
             onCreate: openCreate,
             reports: reports,
           ),
           MapPage(
+            key: ValueKey('map-${reports.length}'),
             reports: reports,
           ),
           const PlaceholderPage(
